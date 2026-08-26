@@ -29,6 +29,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.database.session import get_db
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from fastapi import Depends, HTTPException
+
+@app.get("/health/db")
+def check_db_health(db: Session = Depends(get_db)):
+    try:
+        # Execute a simple query to check the database connection
+        db.execute(text("SELECT 1"))
+        return {"status": "success", "message": "Database connection is healthy!"}
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        raise HTTPException(status_code=500, detail="Database connection failed")
+
 @app.get("/")
 def read_root():
     logger.info("Root endpoint accessed")
