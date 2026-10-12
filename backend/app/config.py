@@ -1,20 +1,32 @@
 import os
-from typing import Optional
+from typing import Optional, List
 from dotenv import load_dotenv
 
 # Load .env file from project root or backend directory if present
 load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 class Settings:
-    PROJECT_NAME: str = "CogniLearn AI — Personalized Learning SaaS"
-    VERSION: str = "1.0.0"
+    PROJECT_NAME: str = "LearnSmart — AI-Powered Personalized Learning System"
+    VERSION: str = "2.0.0"
     API_V1_STR: str = "/api"
 
-    # Security
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "cognilearn-ai-super-secret-jwt-key-2026-production")
+    # Security & Cookie Session
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "learnsmart-ai-super-secret-jwt-key-2026-production")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    SESSION_COOKIE_NAME: str = "learnsmart_session"
+    COOKIE_SECURE: bool = False  # Set to True in HTTPS production
+    COOKIE_SAMESITE: str = "lax"
+
+    # CORS Allowed Origins
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+    ]
 
     # Database Configuration (MySQL default with automatic SQLite fallback)
     MYSQL_USER: str = os.getenv("MYSQL_USER", "root")

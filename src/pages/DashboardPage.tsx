@@ -16,7 +16,8 @@ import {
   MessageSquareCode,
   Award,
   BarChart3,
-  Bot
+  Bot,
+  RefreshCw
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { mockWeeklyAnalytics } from '../data/mockData';
@@ -32,37 +33,72 @@ export const DashboardPage: React.FC = () => {
     setCurrentPage,
     setIsAiDrawerOpen,
     sendChatMessage,
-    addToast
+    addToast,
+    dashboardData,
+    isDashboardLoading,
+    dashboardError,
+    refreshDashboard,
+    backendOnline
   } = useApp();
 
   const [selectedDay, setSelectedDay] = useState('Thu');
 
-  // Overall calculations
-  const totalCompletedModules = courses.reduce((acc, c) => acc + c.completedModules, 0);
-  const totalModules = courses.reduce((acc, c) => acc + c.totalModules, 0);
-  const overallProgress = Math.round((totalCompletedModules / totalModules) * 100);
+  // Overall calculations (prefer real aggregated backend data if available)
+  const totalCompletedModules = dashboardData?.completed_modules_count ?? courses.reduce((acc, c) => acc + c.completedModules, 0);
+  const totalModules = dashboardData?.total_modules_count ?? courses.reduce((acc, c) => acc + c.totalModules, 0);
+  const overallProgress = dashboardData?.overall_progress_pct ?? Math.round((totalCompletedModules / (totalModules || 1)) * 100);
 
-  // Recommended next lesson: find first unfinished course nextLesson
+  // Recommended next lesson: find from backend dashboard or first unfinished course
   const primaryCourse = courses[0];
-  const nextLesson = primaryCourse?.nextLesson;
+  const nextLesson = dashboardData?.recommended_next_lesson
+    ? {
+        id: dashboardData.recommended_next_lesson.id,
+        title: dashboardData.recommended_next_lesson.title,
+        duration: dashboardData.recommended_next_lesson.duration,
+        type: (dashboardData.recommended_next_lesson.module_type || 'reading') as any
+      }
+    : primaryCourse?.nextLesson;
 
-  const maxHours = Math.max(...mockWeeklyAnalytics.map((m) => m.hours));
+  const weeklyActivityData = dashboardData?.weekly_activity || mockWeeklyAnalytics;
+  const maxHours = Math.max(...weeklyActivityData.map((m) => m.hours));
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Backend Synchronization & Error Status Banner */}
+      {dashboardError && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/90 p-4 text-xs text-amber-900 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+            <span>
+              <strong>Offline Fallback Mode:</strong> {dashboardError}. Displaying cached curriculum telemetry.
+            </span>
+          </div>
+          <button
+            onClick={() => refreshDashboard()}
+            disabled={isDashboardLoading}
+            className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-3 py-1.5 font-bold text-white hover:bg-amber-700 transition-colors shadow-sm shrink-0"
+          >
+            <RefreshCw className={`h-3 w-3 ${isDashboardLoading ? 'animate-spin' : ''}`} />
+            Retry Connection
+          </button>
+        </div>
+      )}
+
       {/* 1. Welcome Header & SaaS Banner */}
       <div className="relative overflow-hidden rounded-3xl border border-brand-100 bg-gradient-to-r from-brand-600 via-brand-700 to-violet-700 p-6 sm:p-8 text-white shadow-lg shadow-brand-500/10">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-md">
               <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-              <span>AI Learning Optimizer Active</span>
+              <span>
+                {backendOnline ? 'AI Learning Optimizer Active • Connected to FastAPI & MySQL' : 'AI Learning Optimizer (Local Standby)'}
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Welcome back, {user.name} 👋
+              Welcome back, {dashboardData?.student_name || user.name} 👋
             </h1>
             <p className="text-xs sm:text-sm text-brand-100/90 leading-relaxed">
-              You've conquered 42 minutes today. Reviewing <span className="font-semibold text-white underline decoration-brand-300">Graph Cycle Detection</span> will raise your overall algorithmic mastery to 82%.
+              You've conquered {user.dailyGoalProgressMinutes} minutes today. Reviewing <span className="font-semibold text-white underline decoration-brand-300">Graph Cycle Detection</span> will raise your overall algorithmic mastery to 82%.
             </p>
           </div>
 
@@ -201,7 +237,7 @@ export const DashboardPage: React.FC = () => {
 
           {/* Interactive Bar Chart Visualization */}
           <div className="mt-6 flex h-48 items-end justify-between gap-3 px-2">
-            {mockWeeklyAnalytics.map((item) => {
+            {weeklyActivityData.map((item) => {
               const heightPercent = Math.round((item.hours / maxHours) * 100);
               const isSelected = selectedDay === item.day;
               return (

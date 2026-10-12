@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models.course import Course, CourseModule
+from app.models.course import Course, CourseModule, CourseMaterial
 from app.models.user import User
-from app.schemas.course import CourseSchema, CourseModuleSchema
+from app.schemas.course import CourseSchema, CourseModuleSchema, CourseMaterialSchema
 from app.services.auth_service import get_current_user
 
 router = APIRouter(prefix="/courses", tags=["Courses & Learning Materials"])
@@ -19,6 +19,13 @@ def get_course(course_id: str, db: Session = Depends(get_db)):
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     return course
+
+@router.get("/{course_id}/materials", response_model=List[CourseMaterialSchema])
+def get_course_materials(course_id: str, db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return course.materials
 
 @router.post("/{course_id}/modules/{module_id}/toggle", response_model=CourseModuleSchema)
 def toggle_module(

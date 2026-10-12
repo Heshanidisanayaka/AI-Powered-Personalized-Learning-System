@@ -63,3 +63,8 @@ def diagnose_weak_areas(performances: List[TopicMastery]) -> List[Dict[str, Any]
     # Sort so most critical weak areas appear first
     diagnostics.sort(key=lambda d: d["masteryPercentage"])
     return diagnostics
+
+def get_student_weak_areas(db, user_id: str) -> List[Dict[str, Any]]:
+    performances = db.query(TopicMastery).filter(TopicMastery.user_id == user_id).all()
+    return diagnose_weak_areas(performances)
+

@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
@@ -6,6 +7,7 @@ from app.seed_data import seed_database
 from app.routers import (
     auth,
     profile,
+    dashboard,
     courses,
     mastery,
     recommendations,
@@ -17,31 +19,36 @@ from app.routers import (
 )
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("cognilearn.main")
+logger = logging.getLogger("learnsmart.main")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Initializing LearnSmart AI SaaS backend & seed records...")
+    seed_database()
+    logger.info("Database and intelligent learning models initialized successfully.")
+    yield
+    logger.info("LearnSmart backend shutting down cleanly.")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="Intelligent AI-Powered Personalized Learning System backend API with adaptive quizzes, ML topic mastery, weak-area detection, and RAG tutor assistant."
+    description="Full-stack AI-Powered Personalized Learning System backend API with adaptive quizzes, ML topic mastery, weak-area detection, RAG tutor assistant, and institutional administration.",
+    lifespan=lifespan
 )
 
-# CORS Configuration for React Frontend
+# CORS Configuration for React Frontend with credentials (HttpOnly cookies & Bearer tokens)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In development allow all origins including localhost:5173
+    allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-def on_startup():
-    logger.info("Initializing CogniLearn AI SaaS backend...")
-    seed_database()
-    logger.info("Database and intelligent learning models initialized successfully.")
-
 # Mount all feature routers under /api
 app.include_router(auth.router, prefix=settings.API_V1_STR)
+app.include_router(dashboard.router, prefix=settings.API_V1_STR)
 app.include_router(profile.router, prefix=settings.API_V1_STR)
 app.include_router(courses.router, prefix=settings.API_V1_STR)
 app.include_router(mastery.router, prefix=settings.API_V1_STR)
@@ -66,5 +73,6 @@ def health_check():
     return {
         "status": "healthy",
         "ml_engine": "scikit-learn GradientBoostingRegressor active",
-        "rag_engine": "TF-IDF vector space active"
+        "rag_engine": "TF-IDF vector space active",
+        "session_cookie": settings.SESSION_COOKIE_NAME
     }

@@ -7,36 +7,55 @@ import {
   ArrowRight,
   Shield,
   GraduationCap,
-  CheckCircle2,
-  BookOpen,
   BrainCircuit,
   Eye,
-  EyeOff
+  EyeOff,
+  Loader2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export const AuthPage: React.FC = () => {
-  const { switchRole, setCurrentPage, addToast, setUser, user } = useApp();
+  const { switchRole, login, register, isAuthLoading } = useApp();
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('Sarah Chen');
   const [email, setEmail] = useState('sarah.chen@stanford.edu');
-  const [password, setPassword] = useState('••••••••••••');
+  const [password, setPassword] = useState('password');
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+
     if (isRegister) {
-      setUser((u) => ({
-        ...u,
-        name: name || 'Alex Rivera',
-        email: email || 'alex.rivera@edu.org',
-        role: 'student'
-      }));
-      addToast('Account Created!', `Welcome to CogniLearn AI, ${name}! Your adaptive curriculum is initialized.`, 'success');
+      if (password.length < 6) {
+        setErrorMessage('Password must be at least 6 characters.');
+        return;
+      }
+      const success = await register({ name, email, password });
+      if (!success) {
+        setErrorMessage('Registration could not be completed. The email might already be in use.');
+      }
     } else {
-      addToast('Welcome Back!', `Signed in as ${user.name}`, 'success');
+      const success = await login(email, password);
+      if (!success) {
+        setErrorMessage('Invalid email or password. Please verify your credentials or use the 1-click demo buttons above.');
+      }
     }
-    setCurrentPage('dashboard');
+  };
+
+  const handleDemoStudent = async () => {
+    setEmail('sarah.chen@stanford.edu');
+    setPassword('password');
+    setErrorMessage(null);
+    await switchRole('student');
+  };
+
+  const handleDemoAdmin = async () => {
+    setEmail('m.vance@cognilearn.ai');
+    setPassword('password');
+    setErrorMessage(null);
+    await switchRole('admin');
   };
 
   return (
@@ -49,7 +68,7 @@ export const AuthPage: React.FC = () => {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md">
                 <BrainCircuit className="h-6 w-6 text-white" />
               </div>
-              <span className="text-xl font-bold tracking-tight">CogniLearn AI</span>
+              <span className="text-xl font-bold tracking-tight">LearnSmart AI</span>
             </div>
 
             <div className="mt-12 space-y-3">
@@ -90,7 +109,7 @@ export const AuthPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">
-                  {isRegister ? 'Create Student Account' : 'Welcome to CogniLearn'}
+                  {isRegister ? 'Create Student Account' : 'Welcome to LearnSmart'}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {isRegister ? 'Start your personalized learning journey today' : 'Enter your credentials or choose a quick demo account'}
@@ -101,27 +120,36 @@ export const AuthPage: React.FC = () => {
             {/* Demo Account Quick Switch Buttons */}
             <div className="mt-5 rounded-2xl border border-brand-100 bg-brand-50/50 p-3">
               <p className="text-[11px] font-bold uppercase tracking-wider text-brand-700 mb-2 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5" /> Instant Demo Access (1-Click)
+                <Sparkles className="h-3.5 w-3.5" /> Instant Demo Access (1-Click Real Auth)
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => switchRole('student')}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-brand-200 bg-white py-2 px-2 text-xs font-bold text-brand-700 hover:bg-brand-50 shadow-sm transition-all"
+                  disabled={isAuthLoading}
+                  onClick={handleDemoStudent}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-brand-200 bg-white py-2 px-2 text-xs font-bold text-brand-700 hover:bg-brand-50 shadow-sm transition-all disabled:opacity-50"
                 >
                   <GraduationCap className="h-3.5 w-3.5" />
                   Sarah (Student)
                 </button>
                 <button
                   type="button"
-                  onClick={() => switchRole('admin')}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white py-2 px-2 text-xs font-bold text-violet-700 hover:bg-violet-50 shadow-sm transition-all"
+                  disabled={isAuthLoading}
+                  onClick={handleDemoAdmin}
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white py-2 px-2 text-xs font-bold text-violet-700 hover:bg-violet-50 shadow-sm transition-all disabled:opacity-50"
                 >
                   <Shield className="h-3.5 w-3.5" />
                   Dr. Vance (Admin)
                 </button>
               </div>
             </div>
+
+            {/* Validation Error Banner */}
+            {errorMessage && (
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+                {errorMessage}
+              </div>
+            )}
 
             {/* Auth Form */}
             <form onSubmit={handleSubmit} className="mt-5 space-y-3.5">
@@ -160,11 +188,6 @@ export const AuthPage: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-semibold text-slate-700">Password</label>
-                  {!isRegister && (
-                    <a href="#forgot" onClick={(e) => { e.preventDefault(); addToast('Reset Link Sent', 'Check your university inbox for reset instructions.', 'info'); }} className="text-[11px] font-semibold text-brand-600 hover:underline">
-                      Forgot?
-                    </a>
-                  )}
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -188,17 +211,30 @@ export const AuthPage: React.FC = () => {
 
               <button
                 type="submit"
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 py-3 text-xs font-bold text-white shadow-md shadow-brand-500/25 hover:shadow-lg hover:shadow-brand-500/35 transition-all"
+                disabled={isAuthLoading}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 py-3 text-xs font-bold text-white shadow-md shadow-brand-500/25 hover:shadow-lg hover:shadow-brand-500/35 transition-all disabled:opacity-60"
               >
-                <span>{isRegister ? 'Create My Account' : 'Sign In to Dashboard'}</span>
-                <ArrowRight className="h-4 w-4" />
+                {isAuthLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Connecting to Server...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{isRegister ? 'Create My Account' : 'Sign In to Dashboard'}</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </button>
             </form>
           </div>
 
           <div className="mt-6 border-t border-slate-100 pt-4 text-center">
             <button
-              onClick={() => setIsRegister(!isRegister)}
+              onClick={() => {
+                setIsRegister(!isRegister);
+                setErrorMessage(null);
+              }}
               className="text-xs text-slate-600 hover:text-brand-600 font-medium"
             >
               {isRegister ? 'Already have an account? Sign In' : "Don't have an account yet? Register Free"}

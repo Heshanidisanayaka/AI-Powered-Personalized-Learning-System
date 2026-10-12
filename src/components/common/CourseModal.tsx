@@ -15,11 +15,11 @@ import {
 import { useApp } from '../../context/AppContext';
 
 export const CourseModal: React.FC = () => {
-  const { selectedCourse, setSelectedCourse, setCourses, addToast, setCurrentPage } = useApp();
+  const { selectedCourse, setSelectedCourse, setCourses, toggleCourseModule, addToast, setCurrentPage } = useApp();
 
   if (!selectedCourse) return null;
 
-  const toggleModule = (moduleId: string) => {
+  const toggleModule = async (moduleId: string) => {
     if (!selectedCourse.modules) return;
 
     const updatedModules = selectedCourse.modules.map((m) =>
@@ -39,7 +39,7 @@ export const CourseModal: React.FC = () => {
     setSelectedCourse(updatedCourse);
     setCourses((prev) => prev.map((c) => (c.id === selectedCourse.id ? updatedCourse : c)));
 
-    addToast('Module Status Updated', `Progress is now ${progressPercent}%`, 'info');
+    await toggleCourseModule(selectedCourse.id, moduleId);
   };
 
   return (

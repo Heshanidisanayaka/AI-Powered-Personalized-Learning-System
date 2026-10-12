@@ -1,14 +1,13 @@
 import bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Request, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import TokenData
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
 
@@ -27,25 +26,53 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
-def get_current_user(token: Optional[str] = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+def extract_token_from_request(
+    request: Request,
+    bearer_token: Optional[str] = Depends(oauth2_scheme)
+) -> Optional[str]:
+    """
+    Extracts authentication token from:
+    1. Authorization Bearer header
+    2. HttpOnly session cookie (learnsmart_session)
+    """
+    if bearer_token:
+        return bearer_token
+    cookie_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if cookie_token:
+        return cookie_token
+    return None
+
+def get_current_user(
+    request: Request,
+    token: Optional[str] = Depends(extract_token_from_request),
+    db: Session = Depends(get_db)
+) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="Session expired or invalid credentials. Please sign in again.",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    # If no token provided in request header, default to default demo student 'usr-sarah-01' for seamless testing
+
     if not token:
+        # Check if the route is /api/auth/me or an admin route - strictly require auth
+        path = request.url.path
+        if "/auth/me" in path or "/admin" in path:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required. Please sign in to continue.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        # For general learning endpoints, provide seeded default student as fallback for testing
         user = db.query(User).filter(User.id == "usr-sarah-01").first()
         if user:
             return user
-        # create or find first user
         first_user = db.query(User).first()
         if first_user:
             return first_user
@@ -68,6 +95,6 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Administrative privileges required"
+            detail="Access forbidden: Administrative privileges required."
         )
     return current_user

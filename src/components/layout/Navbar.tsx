@@ -24,7 +24,8 @@ export const Navbar: React.FC = () => {
     setIsAiDrawerOpen,
     searchQuery,
     setSearchQuery,
-    addToast
+    addToast,
+    logout
   } = useApp();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -229,14 +230,14 @@ export const Navbar: React.FC = () => {
                 </button>
                 <div className="my-1 border-t border-slate-100" />
                 <button
-                  onClick={() => {
-                    setCurrentPage('auth');
+                  onClick={async () => {
                     setShowUserDropdown(false);
+                    await logout();
                   }}
                   className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50"
                 >
                   <LogOut className="h-3.5 w-3.5 text-rose-500" />
-                  Sign Out / Switch Account
+                  Sign Out / Terminate Session
                 </button>
               </div>
             </div>

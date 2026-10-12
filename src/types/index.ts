@@ -143,3 +143,39 @@ export interface AdminStats {
   totalQuestions: number;
   aiQueriesAnswered: number;
 }
+
+export interface DashboardSummary {
+  student_name: string;
+  student_title?: string;
+  streak_days: number;
+  daily_goal_minutes: number;
+  daily_goal_progress_minutes: number;
+  total_xp: number;
+  level: number;
+  overall_progress_pct: number;
+  completed_modules_count: number;
+  total_modules_count: number;
+  recommended_next_lesson?: {
+    id: string;
+    title: string;
+    course_id: string;
+    course_title: string;
+    duration: string;
+    module_type: string;
+    topic: string;
+  };
+  weekly_activity: AnalyticsMetric[];
+  weak_topics: WeakArea[];
+  upcoming_tasks: StudyTask[];
+  active_courses: {
+    id: string;
+    title: string;
+    category: string;
+    thumbnail: string;
+    progressPercent: number;
+    completedModules: number;
+    totalModules: number;
+    estimatedHours: number;
+    nextLesson?: string;
+  }[];
+}
